@@ -23,6 +23,11 @@ export function Dashboard({ userId }: { userId: string }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
+  const [neuralLogs, setNeuralLogs] = useState<string[]>(["system.init()", "clusters_active: true"]);
+
+  const addLog = (msg: string) => {
+    setNeuralLogs(prev => [...prev.slice(-4), msg]);
+  };
 
   useEffect(() => {
     const q = query(
@@ -37,7 +42,7 @@ export function Dashboard({ userId }: { userId: string }) {
       setLoading(false);
     }, (err) => {
       console.error(err);
-      setError("Failed to fetch audits. Check Firestore rules.");
+      setError("Cloud sync failure. Verified connection needed.");
       setLoading(false);
     });
 
@@ -50,8 +55,10 @@ export function Dashboard({ userId }: { userId: string }) {
 
     setAnalyzing(true);
     setError(null);
+    setNeuralLogs(["initializing vessel...", "target: " + file.name]);
 
     try {
+      addLog("Extracting text layers...");
       let content = "";
       if (file.type === "application/pdf") {
         content = await extractTextFromPDF(file);
@@ -59,24 +66,28 @@ export function Dashboard({ userId }: { userId: string }) {
         content = await file.text();
       }
 
-      if (content.length < 100) {
-        throw new Error("The file content is too short for a scientific paper.");
+      if (content.length < 50) {
+        throw new Error("Insufficient data for scientific audit.");
       }
 
-      const analysis = await analyzeScientificPaper(content);
+      addLog("Streaming to Gemini 1.5 Pro...");
+      const analysis = await analyzeScientificPaper(content, (msg) => addLog(msg));
       
+      addLog("Analysis complete. Syncing...");
       const docRef = await addDoc(collection(db, 'audits'), {
         title: file.name.replace(/\.[^/.]+$/, ""),
-        paperContent: content.substring(0, 100000), // Safety cap
+        paperContent: content.substring(0, 100000),
         analysis,
         userId,
         createdAt: serverTimestamp()
       });
 
+      addLog("Vessel stable.");
       setSelectedAuditId(docRef.id);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "An error occurred during analysis.");
+      setError(err.message || "Auditing interrupted.");
+      addLog("ERROR: process_halted");
     } finally {
       setAnalyzing(false);
     }
@@ -202,11 +213,14 @@ export function Dashboard({ userId }: { userId: string }) {
           <div className="mt-6 border-t border-white/10 pt-4">
             <h4 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Neural Feed</h4>
             <div className="text-[9px] font-mono text-slate-500 space-y-1">
-              <p className="text-slate-600 italic">&gt; system.init()</p>
-              <p className="text-slate-600 italic">&gt; clusters_active: true</p>
-              <p className={cn(analyzing ? "text-accent-blue font-bold animate-pulse" : "text-green-900")}>
-                &gt; {analyzing ? "auditing_derivatives..." : "vessel_stable."}
-              </p>
+              {neuralLogs.map((log, i) => (
+                <p key={i} className={cn(
+                  "text-slate-600 italic",
+                  i === neuralLogs.length - 1 && analyzing && "text-accent-blue font-bold animate-pulse"
+                )}>
+                  &gt; {log}
+                </p>
+              ))}
             </div>
           </div>
         </div>

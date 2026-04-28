@@ -23,8 +23,10 @@ export interface ScientificAnalysis {
   }[];
 }
 
-export async function analyzeScientificPaper(content: string): Promise<ScientificAnalysis> {
-  const model = "gemini-3.1-pro-preview";
+export async function analyzeScientificPaper(content: string, onProgress?: (msg: string) => void): Promise<ScientificAnalysis> {
+  const model = "gemini-1.5-pro";
+  
+  onProgress?.("Mapping tensor derivatives...");
   
   const prompt = `
     You are an expert scientific reviewer and auditor. Analyze the following scientific paper content for:
