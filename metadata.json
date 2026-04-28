@@ -1,0 +1,6 @@
+{
+  "name": "SciVerify AI: Scientific Paper Auditor",
+  "description": "An AI-powered tool for auditing scientific papers, verifying derivations, detecting plagiarism, and identifying biases with high precision.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

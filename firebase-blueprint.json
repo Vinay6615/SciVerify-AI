@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "Audit": {
+      "title": "Scientific Paper Audit",
+      "description": "Analysis report for a scientific paper",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "paperContent": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "analysis": {
+          "type": "object",
+          "properties": {
+            "authenticity": {
+              "type": "object",
+              "properties": {
+                "score": { "type": "number" },
+                "findings": { "type": "array", "items": { "type": "string" } },
+                "derivationChecks": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "plagiarism": {
+              "type": "object",
+              "properties": {
+                "score": { "type": "number" },
+                "detectedSources": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "bias": {
+              "type": "object",
+              "properties": {
+                "score": { "type": "number" },
+                "types": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "suggestions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "faultyRegions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string" },
+                  "explanation": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["title", "paperContent", "userId", "createdAt", "analysis"]
+    }
+  },
+  "firestore": {
+    "/audits/{auditId}": {
+      "schema": "Audit",
+      "description": "Collection of scientific paper audit reports"
+    }
+  }
+}

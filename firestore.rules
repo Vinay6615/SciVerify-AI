@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidAudit(data) {
+      return data.title is string && data.title.size() <= 500 &&
+             data.userId == request.auth.uid &&
+             data.paperContent is string && data.paperContent.size() <= 200000 &&
+             data.createdAt == request.time;
+    }
+
+    match /audits/{auditId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAudit(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Audits are immutable once created
+      allow update: if false;
+    }
+  }
+}
