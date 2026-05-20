@@ -24,7 +24,7 @@ export interface ScientificAnalysis {
 }
 
 export async function analyzeScientificPaper(content: string, onProgress?: (msg: string) => void): Promise<ScientificAnalysis> {
-  const model = "gemini-1.5-pro";
+  const model = "gemini-3.1-pro-preview";
   
   onProgress?.("Mapping tensor derivatives...");
   
@@ -61,58 +61,65 @@ export async function analyzeScientificPaper(content: string, onProgress?: (msg:
     ${content.substring(0, 30000)} // Limit content to 30k chars for stability
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: [{ parts: [{ text: prompt }] }],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          authenticity: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              findings: { type: Type.ARRAY, items: { type: Type.STRING } },
-              derivationChecks: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ["score", "findings", "derivationChecks"]
-          },
-          plagiarism: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              detectedSources: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ["score", "detectedSources"]
-          },
-          bias: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              types: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ["score", "types"]
-          },
-          suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-          faultyRegions: {
-            type: Type.ARRAY,
-            items: {
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            authenticity: {
               type: Type.OBJECT,
               properties: {
-                text: { type: Type.STRING },
-                explanation: { type: Type.STRING }
+                score: { type: Type.NUMBER },
+                findings: { type: Type.ARRAY, items: { type: Type.STRING } },
+                derivationChecks: { type: Type.ARRAY, items: { type: Type.STRING } }
               },
-              required: ["text", "explanation"]
+              required: ["score", "findings", "derivationChecks"]
+            },
+            plagiarism: {
+              type: Type.OBJECT,
+              properties: {
+                score: { type: Type.NUMBER },
+                detectedSources: { type: Type.ARRAY, items: { type: Type.STRING } }
+              },
+              required: ["score", "detectedSources"]
+            },
+            bias: {
+              type: Type.OBJECT,
+              properties: {
+                score: { type: Type.NUMBER },
+                types: { type: Type.ARRAY, items: { type: Type.STRING } }
+              },
+              required: ["score", "types"]
+            },
+            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            faultyRegions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING },
+                  explanation: { type: Type.STRING }
+                },
+                required: ["text", "explanation"]
+              }
             }
-          }
-        },
-        required: ["authenticity", "plagiarism", "bias", "suggestions", "faultyRegions"]
+          },
+          required: ["authenticity", "plagiarism", "bias", "suggestions", "faultyRegions"]
+        }
       }
-    }
-  });
+    });
 
-  const text = response.text;
-  if (!text) throw new Error("No response from Gemini");
-  return JSON.parse(text);
+    const text = response.text;
+    if (!text) throw new Error("No response from Gemini");
+    return JSON.parse(text);
+  } catch (err: any) {
+    if (err?.error?.code === 404 || err?.message?.includes("not found")) {
+      throw new Error("Model selection error. The requested auditing engine is currently unavailable in your region.");
+    }
+    throw err;
+  }
 }
